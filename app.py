@@ -1,40 +1,52 @@
 import streamlit as st
-import joblib
 import pandas as pd
 import numpy as np
+import joblib
 
-# Load model dan nama kolom fitur
+# Load model dan feature columns
 model = joblib.load('model.pkl')
 feature_columns = joblib.load('feature_columns.pkl')
 
-st.set_page_config(page_title="Prediksi Dropout", layout="centered")
+st.set_page_config(page_title="Prediksi Dropout Siswa", page_icon="🎓", layout="centered")
+
+# -----------------------------
+# Header
+# -----------------------------
 st.title("🎓 Prediksi Siswa Berisiko Dropout")
+st.markdown(
+    "Masukkan informasi siswa untuk memprediksi apakah siswa berpotensi **dropout** atau tidak."
+)
 
-st.markdown("""
-Masukkan informasi siswa untuk memprediksi apakah siswa berpotensi **dropout** atau tidak.
-""")
+st.markdown("---")
 
-# Buat form input untuk semua fitur
-input_data = {}
+# -----------------------------
+# Form Input
+# -----------------------------
+with st.form("dropout_form"):
+    input_data = {}
+    st.subheader("📋 Informasi Siswa")
 
-for col in feature_columns:
-    input_data[col] = st.text_input(f"{col}", value="0")
+    for col in feature_columns:
+        # Untuk data kategorikal (hasil dari one-hot encoding), kita inputkan angka
+        input_data[col] = st.number_input(f"{col}", value=0.0)
 
-# Konversi input jadi dataframe
-input_df = pd.DataFrame([input_data])
+    submitted = st.form_submit_button("Prediksi Dropout")
 
-# Ubah semua input ke float
-try:
-    input_df = input_df.astype(float)
-except:
-    st.error("❌ Input harus berupa angka. Periksa kembali nilai yang dimasukkan.")
+# -----------------------------
+# Prediction
+# -----------------------------
+if submitted:
+    X_input = pd.DataFrame([input_data])[feature_columns]
+    prediction = model.predict(X_input)[0]
+    probas = model.predict_proba(X_input)[0]
 
-# Prediksi
-if st.button("Prediksi Dropout"):
-    prediction = model.predict(input_df)[0]
-    probability = model.predict_proba(input_df)[0][1]
+    st.markdown("---")
+    st.subheader("🧠 Hasil Prediksi")
 
     if prediction == 1:
-        st.error(f"⚠️ Siswa ini diperkirakan akan **dropout** (Probabilitas: {probability:.2f})")
+        st.error(f"⚠️ Siswa **berisiko dropout** dengan probabilitas {probas[1]*100:.2f}%")
     else:
-        st.success(f"✅ Siswa ini diperkirakan **tidak dropout** (Probabilitas: {probability:.2f})")
+        st.success(f"✅ Siswa **tidak berisiko dropout** dengan probabilitas {probas[0]*100:.2f}%")
+
+    st.markdown("---")
+    st.caption("📊 Model: RandomForestClassifier · Akurasi ±88%")
